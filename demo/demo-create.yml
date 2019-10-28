@@ -1,0 +1,117 @@
+---
+# mrkips - Azure Demo - 26-Oct-2019
+# A quick demo set up of basic resources for a VM on Azure using Ansible
+#
+- name: mrkips Demo with Azure and Ansible
+  hosts: localhost
+  connection: local
+  gather_facts: False
+  tasks:
+    - name: Create a resource group for Shared Infrastructure
+      azure_rm_resourcegroup:
+        name: mrkips-rg-cc-shared
+        location: canadacentral
+        tags:
+          ApplicationName: SHARED-INFRA
+          ApplicationOwner: mrkips@outlook.com
+          CostCenter: "8888"
+    - name: Create a virtual network
+      azure_rm_virtualnetwork:
+        resource_group: mrkips-rg-cc-shared
+        name: mrkips-vnet-cc-01
+        address_prefixes_cidr:
+          - "10.70.0.0/16"
+          - "10.80.0.0/16"
+        dns_servers:
+          - "8.8.8.8"
+          - "9.9.9.9"
+    - name: Create a network security group
+      azure_rm_securitygroup:
+        resource_group: mrkips-rg-cc-shared
+        name: mrkips-nsg-shared-01
+        purge_rules: yes
+        rules:
+          - name: 'AllowSSH'
+            protocol: Tcp
+            source_address_prefix:
+            - '216.13.26.74/32'
+            - '216.13.26.65/32'
+            destination_port_range: 22
+            access: Allow
+            priority: 101
+            direction: Inbound
+          - name: 'AllowWeb'
+            protocol: Tcp
+            source_address_prefix:
+              - '216.13.26.74/32'
+              - '216.13.26.65/32'
+            destination_port_range:
+              - 80
+              - 443
+            access: Allow
+            priority: 102
+    - name: Create subnets with associated nsg
+      azure_rm_subnet:
+        resource_group: mrkips-rg-cc-shared
+        virtual_network_name: mrkips-vnet-cc-01
+        name: "{{ item.subnet_name }}"
+        address_prefix_cidr: "{{ item.subnet_cidr }}"
+        security_group:
+          name: mrkips-nsg-shared-01
+      loop:
+        - {subnet_name: 'mrkips-snet-cc-demo-01', subnet_cidr: '10.70.1.0/24'}
+        - {subnet_name: 'mrkips-snet-cc-cfme-01', subnet_cidr: '10.80.1.0/24'}
+    - name: Create a resource group for Demo application
+      azure_rm_resourcegroup:
+        name: mrkips-rg-cc-demo
+        location: canadacentral
+        tags:
+          ApplicationName: DEMO
+          ApplicationOwner: mrkips@outlook.com
+          CostCenter: "9999"
+    - name: Create a public ip address
+      azure_rm_publicipaddress:
+        resource_group: mrkips-rg-cc-demo
+        name: mrkips-pip-demo-cc-01
+        allocation_method: dynamic
+    - name: Create a network interface with private and public IP addresses
+      azure_rm_networkinterface:
+        name: mrkips-demo-cc-01-nic-01
+        resource_group: mrkips-rg-cc-demo
+        virtual_network:
+          name: mrkips-vnet-cc-01
+          resource_group: mrkips-rg-cc-shared
+        subnet_name: mrkips-snet-cc-demo-01
+        create_with_security_group: False
+        ip_configurations:
+        - name: ipconfig1
+          primary: True
+          public_ip_address: mrkips-pip-demo-cc-01
+    - name: Create a storage account
+      azure_rm_storageaccount:
+        resource_group: mrkips-rg-cc-demo
+        name: mrkipsstvmdemo01
+        type: Standard_LRS
+    - name: Create a container for storage account
+      azure_rm_storageblob:
+        resource_group: mrkips-rg-cc-demo
+        storage_account_name: mrkipsstvmdemo01
+        container: mrkipsstcdemo01
+    - name: Create a VM
+      azure_rm_virtualmachine:
+        resource_group: mrkips-rg-cc-demo
+        name: mrkips-demo-cc-01
+        vm_size: Standard_A1_v2
+        managed_disk_type: Standard_LRS
+        storage_account: mrkipsstvmdemo01
+        admin_username: mrkips.admin
+        ssh_password_enabled: false
+        ssh_public_keys:
+        - path: /home/mrkips.admin/.ssh/authorized_keys
+          key_data: ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEAhrVhLzU+5bUevWBrrsmclxMp7wEDqbufZIBroo28pksWWTffOjEwqhsEnFHtYYVwS4AnZjv+h+F4MSVMR1brn2f7KSWKRLYYeoywsbrZmJmfSHRZKDl1786JQFKf3K7m+dsk5Z3E1hmbZ+5P51vw2YKIeQC3ZDTT3yX5nI77DHFEN9CmuF5yHT9ewE8JdT+yyJCMQUS3xHDOvBz2KwYpR7yhWOn/aWzdBJ97VyQ9hshb6uBWC4nktVatfRLfKAVlRRnKGPhWLJEGkNgdM5k+Hkl0U3bUapG8Ax3IkP6lLJEYT+RPSYPovYPuuW0tObBcPjbqoHKdkzJkU8wj9QztPw== gjs-20180108
+        network_interfaces: mrkips-demo-cc-01-nic-01
+        storage_container: mrkipsstcdemo01
+        storage_blob: mrkipsdemocc01os.vhd
+        image:
+          name: mrkips-img-cc-01
+          resource_group: mrkips-rg-cc-images
