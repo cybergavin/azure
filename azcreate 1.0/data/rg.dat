@@ -1,0 +1,9 @@
+###################################################################################################################
+#
+# Azure Resource Group data file
+# Refer https://docs.microsoft.com/en-us/cli/azure/group?view=azure-cli-latest#az-group-create for command switches
+# that may be used as column headers for the CSV data below
+# For multiple values in a column, use key1=value1#key2=value2#...
+#
+###################################################################################################################
+subscription,location,name,tags

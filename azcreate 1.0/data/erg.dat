@@ -1,0 +1,9 @@
+###################################################################################################################
+#
+# Azure Virtual Network Gateway data file
+# Refer https://docs.microsoft.com/en-us/cli/azure/network/vnet-gateway?view=azure-cli-latest#az-network-vnet-gateway-create for command switches
+# that may be used as column headers for the CSV data below
+# For multiple values in a column, use key1=value1#key2=value2#...
+#
+###################################################################################################################
+subscription,name,public-ip-addresses,resource-group,vnet,location,sku

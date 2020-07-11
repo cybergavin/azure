@@ -1,0 +1,9 @@
+###################################################################################################################
+#
+# Azure VPN Connection data file
+# Refer https://docs.microsoft.com/en-us/cli/azure/network/vpn-connection?view=azure-cli-latest#az-network-vpn-connection-create for command switches
+# that may be used as column headers for the CSV data below
+# For multiple values in a column, use key1=value1#key2=value2#...
+#
+###################################################################################################################
+subscription,resource-group,location,name,vnet-gateway1,express-route-circuit2,authorization-key
