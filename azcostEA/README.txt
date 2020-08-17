@@ -12,7 +12,8 @@ Microsoft's Azure Enterprise REST APIs are documented at https://docs.microsoft.
 At the time of this writing, Microsoft provides a Power BI connector (Azure Cost Management) to obtain reports/graphs on usage
  details, but this requires a Power BI Pro license.
 
-By using Microsoft's Azure Enterprise REST APIs along with Grafana, you may build your own Cost Reporting dashboards.
+By using Microsoft's Azure Enterprise REST APIs along with Grafana, you may build your own Cost Reporting dashboards. Refer azurecostEA_Grafana.png for an example screenshot of 
+a Grafana dashboard powered by azcostEA.sh
 
 azcostEA.sh is a simple bash shell script that does the following:
 
