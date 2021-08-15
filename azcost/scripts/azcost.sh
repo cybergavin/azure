@@ -2,8 +2,8 @@
 ########################################################################################################################################
 # Author            : cybergavin 
 # Created On        : 8th July 2020
-# Last Modified On  : N/A
-# Release           : azcost 1.0
+# Last Modified On  : 15th August 2021 
+# Version History   : Refer Source Code Manager. 
 # Description       : This script uses Azure CLI to obtain usage costs based on subscription, service, product, resource and tags for all tenants and subscriptions
 #                     specified in a config file.
 #                     PRE-REQUISITES: 
@@ -16,15 +16,7 @@
 #
 # Determine Script Location and define variables
 #
-if [ -n "`dirname $0 | grep '^/'`" ]; then
-    script_location=`dirname $0`
-elif [ -n "`dirname $0 | grep '^..'`" ]; then
-    cd `dirname $0`
-    script_location=$PWD
-    cd - > /dev/null
-else
-    script_location=`echo ${PWD}/\`dirname $0\` | sed 's#\/\.$##g'`
-fi
+script_location="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 script_name=`basename $0`
 ydate=$(date '+%Y-%m-%d' --date=yesterday)
 install_root=${script_location}/..
@@ -34,9 +26,7 @@ raw_dir=${data_dir}/raw
 processed_dir=${data_dir}/processed
 conf_dir=${install_root}/conf
 tenant_conf=${conf_dir}/tenant.cfg
-temp_dir=${install_root}/temp
 log_dir=${install_root}/logs
-auditfile=${log_dir}/${script_name%%.*}_audit_`date '+%b%Y'`.log
 logfile=${log_dir}/${script_name%%.*}.log
 logfile_old=${log_dir}/${script_name%%.*}.log.old
 #########################################################################################################################################
@@ -77,12 +67,6 @@ houseKeep()
             logMessage "ERROR" "Failed to rotate logfile (>= 5000 lines) to $logfile_old"
         fi
     fi
-    if [ -d $log_dir ]; then
-        find $log_dir -type f -name "*audit*.log" -mtime +365 | xargs -i rm -f {}
-    fi
-    if [ -d  $temp_dir ]; then
-       rm -f ${temp_dir}/*.$$
-    fi
 }
 #
 # Check exit code
@@ -104,6 +88,15 @@ checkStatus()
 #
 #########################################################################################################################################
 #
+# Directory Validation
+#
+for mydir in $data_dir $raw_dir $processed_dir $log_dir
+do
+  if [ ! -d $mydir ]; then
+     mkdir $mydir
+  fi
+done
+#
 # Obtain usage data for all tenants
 #
 IFS=$'\n'
@@ -120,9 +113,12 @@ do
     do
        az account set -s "${fields[$s]}"
        checkStatus "Switched to subscription ${fields[$s]}" "Failed to switch to subscription ${fields[$s]}" "continue"
-       az consumption usage list -s $ydate -e $ydate -o json | jq -jr '.[] |.subscriptionName,",",.consumedService,",",.product,",",.instanceName,",",.tags.CostCenter,",",.tags.Owner,",",.pretaxCost,"\n"' >> $rawdata_file 2>/dev/null
-       checkStatus "Retrieved consumption usage for resources in subscription ${fields[$s]} for $ydate" "Failed to retrieve consumption usage for resources in subscription ${fields[$s]} for $ydate" "continue"
+       az consumption usage list -s $ydate -e $ydate -o json | jq -jr '.[] |.subscriptionName,",",.consumedService,",",.product,",",.instanceName,",",.tags.CostCenter,",",.tags.Owner,",",.pretaxCost,"\n"' >> $rawdata_file
+       checkStatus "Retrieved consumption usage for resources in subscription ${fields[$s]} for $ydate" "Failed to retrieve consumption usage for resources in subscription ${fields[$s]} for $ydate" 
     done
+    # Process raw data
+    awk 'BEGIN{ FS=OFS="," }{a[$2]+=$7 }END{for(i in a)print i","sprintf("%.2f",a[i]);}' $rawdata_file > ${processed_dir}/${mytenant}_costbyresourcetype_${ydate}.csv 
+    awk 'BEGIN{ FS=OFS="," }{a[$4]+=$7 }END{for(i in a)print i","sprintf("%.2f",a[i]);}' $rawdata_file > ${processed_dir}/${mytenant}_costbyresource_${ydate}.csv 
     #
     # Logout
     #
